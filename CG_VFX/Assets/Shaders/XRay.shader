@@ -2,14 +2,23 @@
 	Properties {
 		_RimColor ("Rim Color", Color) = (1,1,1,1)
 		_RimPower ("Rim Power", Range(0.5,8.0)) = 3.5
+		_MainTex("Base (RGB) Gloss (A)", 2D) = "white" {}
 	}
 	SubShader {
 		Tags { "Queue"="Transparent" }
 
 		Pass {
+			ZTest Greater
 			ZWrite On
 			ColorMask 0
 		}
+
+		Pass {
+			ZTest Less
+			Cull Off
+			SetTexture[_MainTex] {combine texture}
+		}
+
 
 		CGPROGRAM
 
