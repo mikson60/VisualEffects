@@ -6,6 +6,8 @@ public class SparkController : MonoBehaviour {
 
     public ParticleSystem sparks;
 
+    private Dictionary<Collider, ParticleSystem> particleSystems = new Dictionary<Collider, ParticleSystem>();
+
     // Use this for initialization
     void Start () {
         string name = this.name;
@@ -14,31 +16,48 @@ public class SparkController : MonoBehaviour {
     private void OnCollisionEnter(Collision collision)
     {
         Debug.Log(name + " collided with " + collision.collider.name);
-        sparks.Play();
+        ParticleSystem ps;
+        if (!particleSystems.ContainsKey(collision.collider))
+        {
+            ps = ParticleSystem.Instantiate<ParticleSystem>(sparks);
+            particleSystems.Add(collision.collider, ps);
+        }
+        else
+        {
+            ps = particleSystems[collision.collider];
+        }
 
         foreach (ContactPoint contact in collision.contacts)
         {
-            sparks.transform.localPosition = transform.InverseTransformPoint(contact.point);
-            
+            ps.transform.position = (contact.point);
+            //ps.transform.LookAt(contact.normal);
         }
+        ps.Play();
+        
         //if (collision.relativeVelocity.magnitude > 2)
             
     }
 
     private void OnCollisionStay(Collision collision)
     {
-
-        foreach (ContactPoint contact in collision.contacts)
+        if (particleSystems.ContainsKey(collision.collider))
         {
-            sparks.transform.localPosition = transform.InverseTransformPoint(contact.point);
-            sparks.transform.LookAt(contact.point);
+            ParticleSystem ps = particleSystems[collision.collider];
+            foreach (ContactPoint contact in collision.contacts)
+            {
+                ps.transform.position = (contact.point);
+                //ps.transform.LookAt(contact.normal);
+            }
         }
-
     }
 
     private void OnCollisionExit(Collision collision)
     {
-        Debug.Log(name + " stopped with " + collision.collider.name);
-        sparks.Stop();
+        if (particleSystems.ContainsKey(collision.collider))
+        {
+            Debug.Log(name + " stopped colliding with " + collision.collider.name);
+            ParticleSystem ps = particleSystems[collision.collider];
+            ps.Stop();
+        }
     }
 }
