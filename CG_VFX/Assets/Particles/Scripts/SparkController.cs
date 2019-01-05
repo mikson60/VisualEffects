@@ -5,8 +5,9 @@ using UnityEngine;
 public class SparkController : MonoBehaviour {
 
     public ParticleSystem sparks;
+    public float MinRelVelocity;
 
-    private Dictionary<Collider, ParticleSystem> particleSystems = new Dictionary<Collider, ParticleSystem>();
+    private Dictionary<Collider, List<ParticleSystem>> particleSystems = new Dictionary<Collider, List<ParticleSystem>>();
 
     // Use this for initialization
     void Start () {
@@ -16,37 +17,38 @@ public class SparkController : MonoBehaviour {
     private void OnCollisionEnter(Collision collision)
     {
         Debug.Log(name + " collided with " + collision.collider.name);
-        
-        Debug.Log("Contacts on enter" + collision.contacts.Length);
-        //if (collision.contacts.Length == 1)
-        //{
-            ParticleSystem ps;
-            if (!particleSystems.ContainsKey(collision.collider))
-            {
-                ps = ParticleSystem.Instantiate<ParticleSystem>(sparks);
-                particleSystems.Add(collision.collider, ps);
-            }
-            else
-            {
-                ps = particleSystems[collision.collider];
-            }
+        //Debug.Log("Contacts on enter" + collision.contacts.Length);
 
-            ps.transform.position = (collision.contacts[0].point);
-
-            ps.Play();
-        //}
-        //else
-        //{
-            
-        //}
-        
-        foreach (ContactPoint contact in collision.contacts)
+        List<ParticleSystem> localSystems;
+        if (!particleSystems.ContainsKey(collision.collider))
         {
-            
-            //ps.transform.LookAt(contact.normal);
+            localSystems = new List<ParticleSystem>();
+
+            foreach (ContactPoint contact in collision.contacts)
+            {
+                ParticleSystem ps;
+                ps = ParticleSystem.Instantiate<ParticleSystem>(sparks);
+                localSystems.Add(ps);
+            }
+            particleSystems.Add(collision.collider, localSystems);
+        }
+        else
+        {
+            localSystems = particleSystems[collision.collider];
         }
 
-        Debug.Log("Relative velocity on enter " + collision.relativeVelocity.magnitude);
+        for (int i = 0; i < collision.contacts.Length; i++)
+        {
+            localSystems[i].transform.position = collision.contacts[i].point;
+            scaleEmissionRateWithSpeed(localSystems[i], collision);
+
+            localSystems[i].Play();
+
+            //localSystems[i].transform.LookAt(contact.normal);
+        }
+
+
+        //Debug.Log("Relative velocity on enter " + collision.relativeVelocity.magnitude);
         
         //ps.Play();
         //var emRate = ps.emission.rateOverTime;
@@ -63,27 +65,50 @@ public class SparkController : MonoBehaviour {
     {
         if (particleSystems.ContainsKey(collision.collider))
         {
-            Debug.Log("Relative velocity on stay " + collision.relativeVelocity.magnitude);
-            ParticleSystem ps = particleSystems[collision.collider];
-            Debug.Log("Contacts on stay " + collision.contacts.Length);
-            foreach (ContactPoint contact in collision.contacts)
+            //Debug.Log("Contacts on stay " + collision.contacts.Length);
+
+            //ParticleSystem ps = particleSystems[collision.collider];
+            List<ParticleSystem> localSystems = particleSystems[collision.collider];
+            for (int i = 0; i < collision.contacts.Length || i < localSystems.Count; i++)
             {
-                ps.transform.position = (contact.point);
-                //ps.transform.LookAt(contact.normal);
+                
+                
+                if (i >= collision.contacts.Length)
+                {
+                    localSystems[i].Stop();
+                } else
+                {
+                    if (localSystems[i] == null)
+                    {
+                        ParticleSystem ps;
+                        ps = ParticleSystem.Instantiate<ParticleSystem>(sparks);
+                        ps.Play();
+                        localSystems.Add(ps);
+                    }
+                    localSystems[i].transform.position = collision.contacts[i].point;
+
+                    //localSystems[i].velocityOverLifetime.s
+
+                    scaleEmissionRateWithSpeed(localSystems[i], collision);
+
+                }
             }
 
+            //Debug.Log("Relative velocity on stay " + collision.relativeVelocity.magnitude);
             //Debug.Log(sparks.emission.rateOverTime.constant);
             //Debug.Log(sparks.emission.rateOverTime.constant * collision.relativeVelocity.magnitude);
             //Debug.Log(sparks.emission.rateOverTime.constantMax);
             //Debug.Log(sparks.emission.rateOverTime.constantMax * collision.relativeVelocity.magnitude);
 
-            var em = ps.emission;
-            var emRate = em.rateOverTime;
-            emRate.constant = sparks.emission.rateOverTime.constant * collision.relativeVelocity.magnitude;
-            //emRate.constantMax = sparks.emission.rateOverTime.constantMax * collision.relativeVelocity.magnitude;
-            em.rateOverTime = emRate;
-            Debug.Log("Result " + em.rateOverTime.constant);
-            Debug.Log("Actual " + ps.emission.rateOverTime.constant);
+            //var em = ps.emission;
+            //var emRate = em.rateOverTime;
+            //float newVel = sparks.emission.rateOverTime.constant * collision.relativeVelocity.magnitude;
+            //emRate.constant = newVel;
+            ////emRate.constantMax = sparks.emission.rateOverTime.constantMax * collision.relativeVelocity.magnitude;
+            //em.rateOverTime = emRate;
+            //Debug.Log("Result " + newVel);
+            //Debug.Log("Actual " + ps.emission.rateOverTime.constant);
+
             //var v = ps.velocityOverLifetime.speedModifier;
             //v.constantMin = sparks.velocityOverLifetime.speedModifier.constantMin * collision.relativeVelocity.magnitude;
             //v.constantMax = sparks.velocityOverLifetime.speedModifier.constantMax * collision.relativeVelocity.magnitude;
@@ -98,11 +123,23 @@ public class SparkController : MonoBehaviour {
         if (particleSystems.ContainsKey(collision.collider))
         {
             Debug.Log(name + " stopped colliding with " + collision.collider.name);
-            ParticleSystem ps = particleSystems[collision.collider];
-            ps.Stop();
-            particleSystems.Remove(collision.collider);
+            foreach(ParticleSystem ps in particleSystems[collision.collider])
+            {
+                ps.Stop();
+                //particleSystems.Remove(collision.collider);
+            }
         }
     }
 
-    //Testcommit
+    private void scaleEmissionRateWithSpeed(ParticleSystem ps, Collision collision)
+    {
+        //Debug.Log("Old " + localSystems[i].emission.rateOverTime.constant);
+        var em = ps.emission;
+        var emRate = em.rateOverTime;
+        float newVel = sparks.emission.rateOverTime.constant * collision.relativeVelocity.magnitude - MinRelVelocity;
+        emRate.constant = newVel;
+        //emRate.constantMax = sparks.emission.rateOverTime.constantMax * collision.relativeVelocity.magnitude;
+        em.rateOverTime = emRate;
+        //Debug.Log("New " + localSystems[i].emission.rateOverTime.constant);
+    }
 }
