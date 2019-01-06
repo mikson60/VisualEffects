@@ -4,6 +4,8 @@ using UnityEngine;
 
 public class SparkController : MonoBehaviour {
 
+    [SerializeField] Rigidbody rb;
+
     public ParticleSystem sparks;
     public float MinRelVelocity;
 
@@ -14,9 +16,13 @@ public class SparkController : MonoBehaviour {
         string name = this.name;
 	}
 
+    private void Update()
+    {
+        // Debug.Log();
+    }
+
     private void OnCollisionEnter(Collision collision)
     {
-        Debug.Log(name + " collided with " + collision.collider.name);
         //Debug.Log("Contacts on enter" + collision.contacts.Length);
 
         List<ParticleSystem> localSystems;
@@ -122,7 +128,6 @@ public class SparkController : MonoBehaviour {
     {
         if (particleSystems.ContainsKey(collision.collider))
         {
-            Debug.Log(name + " stopped colliding with " + collision.collider.name);
             foreach(ParticleSystem ps in particleSystems[collision.collider])
             {
                 ps.Stop();
@@ -136,7 +141,7 @@ public class SparkController : MonoBehaviour {
         //Debug.Log("Old " + localSystems[i].emission.rateOverTime.constant);
         var em = ps.emission;
         var emRate = em.rateOverTime;
-        float newVel = sparks.emission.rateOverTime.constant * collision.relativeVelocity.magnitude - MinRelVelocity;
+        float newVel = sparks.emission.rateOverTime.constant * rb.velocity.magnitude - MinRelVelocity;
         emRate.constant = newVel;
         //emRate.constantMax = sparks.emission.rateOverTime.constantMax * collision.relativeVelocity.magnitude;
         em.rateOverTime = emRate;
